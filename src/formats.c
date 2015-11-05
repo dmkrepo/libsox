@@ -404,6 +404,33 @@ static FILE * xfopen(char const * identifier, char const * mode, lsx_io_type * i
   return fopen(identifier, mode);
 }
 
+
+#if defined(_MSC_VER) && _MSC_VER == 1900
+/*
+Fix for Visual Studio 2015
+Taken from https://rt.perl.org/Public/Bug/Display.html?id=125714
+*/
+/* From corecrt_internal_stdio.h: */
+typedef struct
+{
+    union
+    {
+        FILE  _public_file;
+        char* _ptr;
+    };
+
+    char*            _base;
+    int              _cnt;
+    long             _flags;
+    long             _file;
+    int              _charbuf;
+    int              _bufsiz;
+    char*            _tmpfname;
+    /*CRITICAL_SECTION _lock;*/
+} __crt_stdio_stream_data;
+
+#endif
+
 /* Hack to rewind pipes (a small amount).
  * Works by resetting the FILE buffer pointer */
 static void UNUSED rewind_pipe(FILE * fp)
@@ -415,6 +442,8 @@ static void UNUSED rewind_pipe(FILE * fp)
   fp->_r += PIPE_AUTO_DETECT_SIZE;
 #elif defined __GLIBC__
   fp->_IO_read_ptr = fp->_IO_read_base;
+#elif defined _MSC_VER && _MSC_VER == 1900
+  ((__crt_stdio_stream_data*)fp)->_ptr = ((__crt_stdio_stream_data*)fp)->_base;
 #elif defined _MSC_VER || defined _WIN32 || defined _WIN64 || \
       defined _ISO_STDIO_ISO_H || defined __sgi
   fp->_ptr = fp->_base;
