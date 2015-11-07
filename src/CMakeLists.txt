@@ -140,15 +140,39 @@ set(formats_srcs
 #set(formats_srcs ${formats_srcs} coreaudio sndio sunaudio waveaudio)
 #add_definitions(-Ibit-rot)
 
-add_library(lib${PROJECT_NAME}
+if(BUILD_SHARED_LIBS)
+set(lib_type SHARED)
+else()
+set(lib_type STATIC)
+endif()
+
+add_library(lib${PROJECT_NAME} ${lib_type}
   effects                 formats_i               libsox_i
   effects_i               ${formats_srcs}         ${optional_srcs}
   effects_i_dsp           getopt
   ${effects_srcs}         util
   formats                 libsox                  xmalloc
 )
+
+if(BUILD_SHARED_LIBS)
+target_compile_options(
+	lib${PROJECT_NAME}
+	PUBLIC  -DLSX_DLL
+	PRIVATE -DLSX_EXPORT
+)
+target_link_libraries(lib${PROJECT_NAME} lpc10 ${optional_libs})
+endif()
+
+option(BUILD_SHARED_LIBS "Build libsox as a shared library" ON)
+option(SOX_BUILD_EXAMPLES "Build examples" ON)
+
 add_executable(${PROJECT_NAME} ${PROJECT_NAME}.c)
+if(BUILD_SHARED_LIBS)
+target_link_libraries(${PROJECT_NAME} lib${PROJECT_NAME} )
+else()
 target_link_libraries(${PROJECT_NAME} lib${PROJECT_NAME} lpc10 ${optional_libs})
+endif()
+if(SOX_BUILD_EXAMPLES)
 add_executable(sox_sample_test sox_sample_test.c)
 add_executable(example0 example0.c)
 target_link_libraries(example0 lib${PROJECT_NAME} lpc10 ${optional_libs})
@@ -164,6 +188,7 @@ add_executable(example5 example5.c)
 target_link_libraries(example5 lib${PROJECT_NAME} lpc10 ${optional_libs})
 add_executable(example6 example6.c)
 target_link_libraries(example6 lib${PROJECT_NAME} lpc10 ${optional_libs})
+endif()
 find_program(LN ln)
 if (LN)
   add_custom_target(rec ALL ${LN} -sf sox rec DEPENDS sox)
